@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.chehejia.saos.ab.plus.dao.ro.persistence.AbRepairOrderMapper">
+    <resultMap id="BaseResultMap" type="com.chehejia.saos.ab.plus.dao.ro.domain.AbRepairOrder">
+        <id column="id" jdbcType="INTEGER" property="id" />
+        <result column="ro_code" jdbcType="VARCHAR" property="roCode" />
+        <result column="refer_ro_code" jdbcType="VARCHAR" property="referRoCode" />
+        <result column="store_code" jdbcType="VARCHAR" property="storeCode" />
+        <result column="store_name" jdbcType="VARCHAR" property="storeName" />
+        <result column="service_type" jdbcType="INTEGER" property="serviceType" />
+        <result column="remarks" jdbcType="VARCHAR" property="remarks" />
+        <result column="vin" jdbcType="VARCHAR" property="vin" />
+        <result column="customer_account_id" jdbcType="VARCHAR" property="customerAccountId" />
+        <result column="employee_account_id" jdbcType="VARCHAR" property="employeeAccountId" />
+        <result column="employee_name" jdbcType="VARCHAR" property="employeeName" />
+        <result column="begin_time" jdbcType="TIMESTAMP" property="beginTime" />
+        <result column="end_time" jdbcType="TIMESTAMP" property="endTime" />
+        <result column="status" jdbcType="INTEGER" property="status" />
+        <result column="total_price" jdbcType="DECIMAL" property="totalPrice" />
+        <result column="suspend_status" jdbcType="INTEGER" property="suspendStatus" />
+        <result column="suspend_time" jdbcType="TIMESTAMP" property="suspendTime" />
+        <result column="create_user" jdbcType="VARCHAR" property="createUser" />
+        <result column="create_username" jdbcType="VARCHAR" property="createUsername" />
+        <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+        <result column="is_delete" jdbcType="INTEGER" property="isDelete" />
+        <result column="update_user" jdbcType="VARCHAR" property="updateUser" />
+        <result column="update_username" jdbcType="VARCHAR" property="updateUsername" />
+        <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+        <result column="ticket_no" jdbcType="VARCHAR" property="ticketNo" />
+        <result column="type" jdbcType="INTEGER" property="type" />
+        <result column="create_type" jdbcType="INTEGER" property="createType" />
+        <result column="repair_username" jdbcType="VARCHAR" property="repairUsername" />
+        <result column="repair_user_phone" jdbcType="VARCHAR" property="repairUserPhone" />
+        <result column="finish_time" jdbcType="VARCHAR" property="finishTime" />
+        <result column="total_odometer" jdbcType="VARCHAR" property="totalOdometer" />
+        <result column="fuel_level_position" jdbcType="VARCHAR" property="fuelLevelPosition" />
+        <result column="soc" jdbcType="VARCHAR" property="soc" />
+        <result column="fuel_endurance" jdbcType="INTEGER" property="fuelEndurance" />
+
+    </resultMap>
+
+
+    <sql id="common_where_if">
+        <if test="roCode != null and roCode != ''">
+            AND a.ro_code=#{roCode}
+        </if>
+        <if test="ticketNo != null and ticketNo != ''">
+            AND a.ticket_no=#{ticketNo}
+        </if>
+        <if test="vin != null and vin != ''">
+            AND a.vin=#{vin}
+        </if>
+        <if test="beginCreateTime != null and endCreateTime != null">
+            and a.create_time >= CONCAT(#{beginCreateTime},' 00:00:00') and <![CDATA[ a.create_time <= CONCAT(#{endCreateTime},' 23:59:59')  ]]>
+        </if>
+        <if test="beginUpdateTime != null and endUpdateTime != null">
+            and a.update_time >= CONCAT(#{beginUpdateTime},' 00:00:00') and <![CDATA[ a.update_time <= CONCAT(#{endUpdateTime},' 23:59:59')  ]]>
+        </if>
+        <if test="statusList != null and statusList.size()>0" >
+            and a.status in
+            <foreach collection="statusList" item="status" index="index" open="(" close=")" separator=",">
+                #{status}
+            </foreach>
+        </if>
+        <if test="typeList != null and typeList.size()>0" >
+            and a.type in
+            <foreach collection="typeList" item="type" index="index" open="(" close=")" separator=",">
+                #{type}
+            </foreach>
+        </if>
+        <if test="createTypeList != null and createTypeList.size()>0" >
+            and a.create_type in
+            <foreach collection="createTypeList" item="createType" index="index" open="(" close=")" separator=",">
+                #{createType}
+            </foreach>
+        </if>
+        <if test="createUserList != null and createUserList.size()>0" >
+            and a.create_user in
+            <foreach collection="createUserList" item="createUser" index="index" open="(" close=")" separator=",">
+                #{createUser}
+            </foreach>
+        </if>
+        <if test="isMixRepairQueryFlag != null and isMixRepairQueryFlag == 0">
+                and  <![CDATA[ (length(a.refer_ro_code)<1 or a.refer_ro_code is null) ]]>
+        </if>
+        <if test="isMixRepairQueryFlag != null and isMixRepairQueryFlag == 1">
+                and <![CDATA[ (a.refer_ro_code is not null and a.refer_ro_code != '' ) ]]>
+        </if>
+
+    </sql>
+
+    <select id="selectPageListForStore" parameterType="com.chehejia.saos.ab.plus.service.ro.model.request.RepairOrderPageReqDTO" resultMap="BaseResultMap">
+      select a.*
+        from saos_ab.ab_repair_order a
+       where a.store_code = #{storeCode}
+         and (( exists (
+          select 1 from saos_op.db_bill_main t
+          where t.bill_stage_status in(33,36)
+            and a.vin = t.vin
+            and <![CDATA[ t.act_delivery_time <= a.create_time ]]>
+        ) and a.status = 40 ) or a.status != 40)
+        <include refid="common_where_if"/>
+           order by a.create_time desc
+           limit #{start},#{pageSize}
+    </select>
+
+
+    <select id="selectPageListForStoreCount" parameterType="com.chehejia.saos.ab.plus.service.ro.model.request.RepairOrderPageReqDTO" resultType="java.lang.Integer">
+        select count(1)
+        from saos_ab.ab_repair_order a
+        where a.store_code = #{storeCode}
+        and (( exists (
+        select 1 from saos_op.db_bill_main t
+        where t.bill_stage_status in(33,36)
+        and a.vin = t.vin
+        and <![CDATA[ t.act_delivery_time <= a.create_time ]]>
+        ) and a.status = 40 ) or a.status != 40)
+        <include refid="common_where_if"/>
+    </select>
+</mapper>
+
